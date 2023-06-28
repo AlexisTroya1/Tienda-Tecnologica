@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tienda Tecnológica</title>
+  <style>
+    body {
+      background-color: burlywood;
+    }
+    table {
+      width: 50%;
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+    table th, table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    form {
+      text-align: center;
+    }
+    h1 {
+      text-align: center;
+    }
+    .eliminar {
+      color: white;
+      background-color: blue;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tienda Tecnológica</h1>
+
+  <form id="formularioProducto">
+    <input type="text" id="nombre" placeholder="Nombre del producto" required>
+    <input type="number" id="precio" placeholder="Precio" required>
+    <input type="number" id="stock" placeholder="Stock" required>
+    <textarea id="descripcion" placeholder="Descripción"></textarea>
+    <button type="submit">Agregar producto</button>
+  </form>
+
+  <button id="btnListarProductos">Listar Productos</button>
+  <button id="btnFacturar">Facturar</button>
+
+  <table id="tablaProductos">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Precio</th>
+        <th>Stock</th>
+        <th>Descripción</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="listaProductos"></tbody>
+  </table>
+
+  <div id="formularioFactura" style="display: none;">
+    <h2>Factura</h2>
+    <form id="formularioGenerarFactura">
+      <label for="producto">Producto:</label>
+      <select id="producto"></select>
+      <br>
+      <label for="stockProducto">Stock:</label>
+      <input type="text" id="stockProducto" readonly>
+      <br>
+      <label for="cantidad">Cantidad:</label>
+      <input type="number" id="cantidad" placeholder="Cantidad" required>
+      <br>
+      <label for="costoUnitario">Costo Unitario:</label>
+      <input type="number" id="costoUnitario" placeholder="Costo Unitario" required>
+      <br>
+      <label for="costoSinIVA">Costo sin IVA:</label>
+      <input type="number" id="costoSinIVA" placeholder="Costo sin IVA" readonly>
+      <br>
+      <label for="iva">IVA (12%):</label>
+      <input type="number" id="iva" placeholder="IVA" readonly>
+      <br>
+      <label for="costoTotal">Costo Total a Pagar:</label>
+      <input type="number" id="costoTotal" placeholder="Costo Total" readonly>
+      <br>
+      <p id="mensajePago"></p> <!-- Nuevo elemento para mostrar el mensaje -->
+      <br>
+      <button type="submit">Generar Factura</button>
+    </form>
+  </div>
+
+  <script>
+    const formularioProducto = document.getElementById('formularioProducto');
+    const listaProductos = document.getElementById('listaProductos');
+    const btnListarProductos = document.getElementById('btnListarProductos');
+    const btnFacturar = document.getElementById('btnFacturar');
+    const formularioFactura = document.getElementById('formularioFactura');
+    const formularioGenerarFactura = document.getElementById('formularioGenerarFactura');
+    const productoSelect = document.getElementById('producto');
+    const cantidadInput = document.getElementById('cantidad');
+    const costoUnitarioInput = document.getElementById('costoUnitario');
+    const costoSinIVAInput = document.getElementById('costoSinIVA');
+    const ivaInput = document.getElementById('iva');
+    const costoTotalInput = document.getElementById('costoTotal');
+    const mensajePago = document.getElementById('mensajePago');
+
+    formularioProducto.addEventListener('submit', e => {
+      e.preventDefault();
+
+      const nombre = document.getElementById('nombre').value;
+      const precio = document.getElementById('precio').value;
+      const stock = document.getElementById('stock').value;
+      const descripcion = document.getElementById('descripcion').value;
+
+      const nuevoProducto = {
+        name: nombre,
+        price: precio,
+        stock: stock,
+        description: descripcion
+      };
+
+      fetch('/productos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(nuevoProducto)
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log(data);
+
+          const fila = document.createElement('tr');
+          fila.innerHTML = `
+            <td>${data.name}</td>
+            <td>$${data.price}</td>
+            <td>${data.stock}</td>
+            <td>${data.description}</td>
+            <td>
+              <button class="eliminar" onclick="eliminarProducto('${data._id}')">Eliminar</button>
+              <button onclick="mostrarFormularioModificar('${data._id}', '${data.name}', '${data.price}', '${data.stock}', '${data.description}')">Modificar</button>
+            </td>
+          `;
+          listaProductos.appendChild(fila);
+
+          const option = document.createElement('option');
+          option.value = data._id;
+          option.textContent = data.name;
+          option.dataset.stock = data.stock; // Agregar el atributo data-stock con el valor del stock
+          productoSelect.appendChild(option);
+
+          formularioProducto.reset();
+        })
+        .catch(error => {
+          console.error('Error al ingresar los datos:', error);
+        });
+    });
+
+    function cargarProductos() {
+      fetch('/productos')
+        .then(response => response.json())
+        .then(data => {
+          listaProductos.innerHTML = '';
+
+          data.forEach(producto => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+              <td>${producto.name}</td>
+              <td>$${producto.price}</td>
+              <td>${producto.stock}</td>
+              <td>${producto.description}</td>
+              <td>
+                <button class="eliminar" onclick="eliminarProducto('${producto._id}')">Eliminar</button>
+                <button onclick="mostrarFormularioModificar('${producto._id}', '${producto.name}', '${producto.price}', '${producto.stock}', '${producto.description}')">Modificar</button>
+              </td>
+            `;
+            listaProductos.appendChild(fila);
+
+            const option = document.createElement('option');
+            option.value = producto._id;
+            option.textContent = producto.name;
+            option.dataset.stock = producto.stock; // Agregar el atributo data-stock con el valor del stock
+            productoSelect.appendChild(option);
+          });
+        })
+        .catch(error => {
+          console.error('Error al cargar los productos:', error);
+        });
+    }
+
+    function eliminarProducto(id) {
+      if (confirm('¿Estás seguro de eliminar este producto?')) {
+        fetch(`/productos/${id}`, {
+          method: 'DELETE'
+        })
+          .then(response => {
+            if (response.ok) {
+              cargarProductos();
+            } else {
+              throw new Error('No se pudo eliminar el producto.');
+            }
+          })
+          .catch(error => {
+            console.error('Error al eliminar el producto:', error);
+          });
+      }
+    }
+
+    function mostrarFormularioModificar(id, nombre, precio, stock, descripcion) {
+      document.getElementById('nombre').value = nombre;
+      document.getElementById('precio').value = precio;
+      document.getElementById('stock').value = stock;
+      document.getElementById('descripcion').value = descripcion;
+
+      const botonAgregar = document.querySelector('#formularioProducto button[type="submit"]');
+      botonAgregar.textContent = 'Modificar';
+
+      formularioProducto.removeEventListener('submit', agregarProducto);
+      formularioProducto.addEventListener('submit', () => modificarProducto(id));
+
+      btnListarProductos.style.display = 'none';
+    }
+
+    function modificarProducto(id) {
+      const nombre = document.getElementById('nombre').value;
+      const precio = document.getElementById('precio').value;
+      const stock = document.getElementById('stock').value;
+      const descripcion = document.getElementById('descripcion').value;
+
+      const productoModificado = {
+        name: nombre,
+        price: precio,
+        stock: stock,
+        description: descripcion
+      };
+
+      fetch(`/productos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(productoModificado)
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log(data);
+
+          document.getElementById('nombre').value = '';
+          document.getElementById('precio').value = '';
+          document.getElementById('stock').value = '';
+          document.getElementById('descripcion').value = '';
+
+          const botonAgregar = document.querySelector('#formularioProducto button[type="submit"]');
+          botonAgregar.textContent = 'Agregar producto';
+
+          formularioProducto.removeEventListener('submit', modificarProducto);
+          formularioProducto.addEventListener('submit', agregarProducto);
+
+          btnListarProductos.style.display = 'block';
+
+          cargarProductos();
+        })
+        .catch(error => {
+          console.error('Error al modificar el producto:', error);
+        });
+    }
+
+    btnListarProductos.addEventListener('click', () => {
+      cargarProductos();
+      btnFacturar.style.display = 'block'; // Mostrar el botón de facturar
+      formularioFactura.style.display = 'none'; // Ocultar el formulario de factura
+    });
+
+    btnFacturar.addEventListener('click', () => {
+      formularioFactura.style.display = 'block'; // Mostrar el formulario de factura
+      btnFacturar.style.display = 'none'; // Ocultar el botón de facturar
+
+      productoSelect.value = ''; // Limpiar el valor seleccionado del producto
+      cantidadInput.value = ''; // Limpiar el campo de cantidad
+      costoUnitarioInput.value = ''; // Limpiar el campo de costo unitario
+      costoSinIVAInput.value = ''; // Limpiar el campo de costo sin IVA
+      ivaInput.value = ''; // Limpiar el campo de IVA
+      costoTotalInput.value = ''; // Limpiar el campo de costo total
+      mensajePago.textContent = ''; // Limpiar el mensaje de pago
+
+      actualizarStockProducto(); // Actualizar el stock del producto seleccionado
+    });
+
+    productoSelect.addEventListener('change', actualizarStockProducto);
+
+    function actualizarStockProducto() {
+      const productoSeleccionado = productoSelect.value;
+      const stockDisponible = productoSelect.options[productoSelect.selectedIndex].dataset.stock;
+      stockProducto.value = stockDisponible;
+    }
+
+    formularioGenerarFactura.addEventListener('submit', e => {
+      e.preventDefault();
+
+      const productoSeleccionado = productoSelect.value;
+      const cantidad = cantidadInput.value;
+      const costoUnitario = costoUnitarioInput.value;
+
+      const costoSinIVA = costoUnitario * cantidad;
+      const iva = costoSinIVA * 0.12;
+      const costoTotal = costoSinIVA + iva;
+
+      costoSinIVAInput.value = costoSinIVA;
+      ivaInput.value = iva;
+      costoTotalInput.value = costoTotal;
+
+      if (cantidad > stockProducto.value) {
+        mensajePago.textContent = 'No hay suficiente stock disponible.';
+        costoTotalInput.value = '';
+        ivaInput.value = '';
+      } else {
+        // Obtener el nombre del producto seleccionado
+        const productoSeleccionado = productoSelect.options[productoSelect.selectedIndex].text;
+        mensajePago.textContent = `El valor a pagar por "${productoSeleccionado}" es de: $${costoTotal}`;
+        
+      }
+    });
+   
+  </script>
+</body>
+</html>
